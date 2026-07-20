@@ -1,0 +1,25 @@
+{
+    "data": [
+        {
+            "id": "701",
+            "type": "certificates",
+            "attributes": {
+                "type": "letsencrypt",
+                "verification_method": "http-01",
+                "key_type": "ecdsa",
+                "request_status": "created",
+                "status": "installed",
+                "active": true,
+                "created_at": "2026-03-04T09:31:58.000000Z",
+                "updated_at": "2026-07-13T23:24:06.000000Z"
+            }
+        }
+    ],
+    "links": [],
+    "meta": {
+        "path": "https://forge.laravel.com/api/orgs/acme/servers/101/sites/201/certificates",
+        "per_page": 30,
+        "next_cursor": null,
+        "prev_cursor": null
+    }
+}

@@ -1,0 +1,23 @@
+{
+    "data": [
+        {
+            "id": "501",
+            "type": "backgroundProcesses",
+            "attributes": {
+                "command": "php artisan queue:work",
+                "user": "forge",
+                "directory": "/home/forge/example.com",
+                "processes": 2,
+                "status": "installed",
+                "created_at": "2026-03-12T17:58:29.000000Z"
+            }
+        }
+    ],
+    "links": [],
+    "meta": {
+        "path": "https://forge.laravel.com/api/orgs/acme/servers/101/background-processes",
+        "per_page": 30,
+        "next_cursor": null,
+        "prev_cursor": null
+    }
+}

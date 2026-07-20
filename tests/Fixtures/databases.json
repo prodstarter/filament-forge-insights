@@ -1,0 +1,21 @@
+{
+    "data": [
+        {
+            "id": "601",
+            "type": "databases",
+            "attributes": {
+                "name": "forge",
+                "status": "installed",
+                "created_at": "2023-10-13T14:34:31.000000Z",
+                "updated_at": "2023-10-13T14:34:31.000000Z"
+            }
+        }
+    ],
+    "links": [],
+    "meta": {
+        "path": "https://forge.laravel.com/api/orgs/acme/servers/101/database/schemas",
+        "per_page": 30,
+        "next_cursor": null,
+        "prev_cursor": null
+    }
+}

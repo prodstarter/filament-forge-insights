@@ -1,0 +1,61 @@
+{
+    "data": [
+        {
+            "id": "101",
+            "type": "servers",
+            "attributes": {
+                "id": 101,
+                "name": "app-production",
+                "type": "app",
+                "provider": "ocean2",
+                "region": "Amsterdam 3",
+                "size": "s-1vcpu-2gb",
+                "ip_address": "203.0.113.10",
+                "private_ip_address": "10.0.0.10",
+                "php_version": "php84",
+                "database_type": "mysql8",
+                "is_ready": true,
+                "connection_status": "successful",
+                "created_at": "2026-01-15T10:00:00.000000Z",
+                "updated_at": "2026-06-18T06:35:57.000000Z"
+            },
+            "links": {
+                "self": {
+                    "href": "https://forge.laravel.com/api/orgs/acme/servers/101"
+                }
+            }
+        },
+        {
+            "id": "102",
+            "type": "servers",
+            "attributes": {
+                "id": 102,
+                "name": "app-staging",
+                "type": "app",
+                "provider": "ocean2",
+                "region": "Amsterdam 3",
+                "size": "s-1vcpu-1gb",
+                "ip_address": "203.0.113.20",
+                "private_ip_address": "10.0.0.20",
+                "php_version": "php84",
+                "database_type": "mysql8",
+                "is_ready": true,
+                "connection_status": "successful",
+                "created_at": "2026-02-01T10:00:00.000000Z",
+                "updated_at": "2026-02-01T10:00:00.000000Z"
+            },
+            "links": {
+                "self": {
+                    "href": "https://forge.laravel.com/api/orgs/acme/servers/102"
+                }
+            }
+        }
+    ],
+    "links": [],
+    "meta": {
+        "path": "https://forge.laravel.com/api/orgs/acme/servers",
+        "per_page": 30,
+        "next_cursor": null,
+        "prev_cursor": null
+    }
+}
