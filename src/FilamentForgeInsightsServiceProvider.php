@@ -169,6 +169,7 @@ class FilamentForgeInsightsServiceProvider extends PackageServiceProvider
     {
         return [
             '2026_07_20_000000_create_forge_insights_settings_table',
+            '2026_07_21_000000_add_server_and_site_to_forge_insights_settings_table',
         ];
     }
 }

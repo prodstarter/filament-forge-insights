@@ -49,3 +49,17 @@ it('renders databases across every server when connected', function () {
         ->assertSeeText('forge')
         ->assertSeeText('app-production');
 });
+
+it('is not accessible when scoped down to a single site', function () {
+    ForgeInsightsSetting::query()->create([
+        'token' => 'test-token',
+        'organization' => 'acme',
+        'server' => '101',
+        'site' => '201',
+    ]);
+
+    app(SettingsManager::class)->applyToConfig();
+
+    expect(ListDatabases::canAccess())->toBeFalse();
+    expect(ListDatabases::shouldRegisterNavigation())->toBeFalse();
+});

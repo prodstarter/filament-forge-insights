@@ -10,9 +10,10 @@ use Filament\Support\Icons\Heroicon;
 use Prodstarter\FilamentForgeInsights\Filament\Widgets\RecentDeploymentsWidget;
 use Prodstarter\FilamentForgeInsights\Filament\Widgets\ResourceOverviewWidget;
 use Prodstarter\FilamentForgeInsights\Filament\Widgets\ServerHealthTableWidget;
+use Prodstarter\FilamentForgeInsights\Settings\SettingsManager;
 use UnitEnum;
 
-class InfrastructureDashboard extends Page
+class ServerDashboard extends Page
 {
     protected static string | BackedEnum | null $navigationIcon = Heroicon::OutlinedChartBar;
 
@@ -22,7 +23,7 @@ class InfrastructureDashboard extends Page
 
     public static function getNavigationGroup(): string | UnitEnum | null
     {
-        return config('forge-insights.navigation_group', 'Infrastructure');
+        return config('forge-insights.navigation_group', 'Server');
     }
 
     public function content(Schema $schema): Schema
@@ -31,7 +32,7 @@ class InfrastructureDashboard extends Page
             Grid::make(1)->schema(
                 $this->getWidgetsSchemaComponents([
                     ResourceOverviewWidget::class,
-                    ServerHealthTableWidget::class,
+                    ...(app(SettingsManager::class)->isScopedToSite() ? [] : [ServerHealthTableWidget::class]),
                     RecentDeploymentsWidget::class,
                 ]),
             ),

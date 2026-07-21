@@ -36,6 +36,22 @@ it('maps the api response into SiteData DTOs', function () {
     expect($sites->last()->deploymentStatus)->toBe('deploying');
 });
 
+it('narrows the site list to the scoped site when one is configured', function () {
+    config(['forge-insights.site' => 202]);
+
+    MockClient::global([
+        ListSitesRequest::class => MockResponse::make(
+            json_decode(file_get_contents(__DIR__ . '/Fixtures/sites.json'), true),
+            200,
+        ),
+    ]);
+
+    $sites = app(SiteRepositoryInterface::class)->all(101);
+
+    expect($sites)->toHaveCount(1);
+    expect($sites->first()->domain)->toBe('beta.example.com');
+});
+
 it('caches the site list per server so a second call does not re-hit the api', function () {
     $mockClient = MockClient::global([
         ListSitesRequest::class => MockResponse::make(

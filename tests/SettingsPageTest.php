@@ -3,6 +3,7 @@
 use Prodstarter\FilamentForgeInsights\Filament\Pages\Settings;
 use Prodstarter\FilamentForgeInsights\Forge\Requests\ListOrganizationsRequest;
 use Prodstarter\FilamentForgeInsights\Forge\Requests\ListServersRequest;
+use Prodstarter\FilamentForgeInsights\Forge\Requests\ListSitesRequest;
 use Prodstarter\FilamentForgeInsights\Settings\ForgeInsightsSetting;
 use Saloon\Http\Faking\MockClient;
 use Saloon\Http\Faking\MockResponse;
@@ -41,6 +42,45 @@ it('can connect and persist settings after a successful test', function () {
 
     expect(ForgeInsightsSetting::query()->first())
         ->organization->toBe('acme');
+});
+
+it('can narrow the scope down to a single server and site', function () {
+    MockClient::global([
+        ListOrganizationsRequest::class => MockResponse::make([
+            'data' => [
+                [
+                    'id' => 'org-1',
+                    'type' => 'organizations',
+                    'attributes' => ['name' => 'Acme', 'slug' => 'acme'],
+                ],
+            ],
+        ], 200),
+        ListServersRequest::class => MockResponse::make(
+            json_decode(file_get_contents(__DIR__ . '/Fixtures/servers.json'), true),
+            200,
+        ),
+        ListSitesRequest::class => MockResponse::make(
+            json_decode(file_get_contents(__DIR__ . '/Fixtures/sites.json'), true),
+            200,
+        ),
+    ]);
+
+    livewire(Settings::class)
+        ->fillForm([
+            'token' => 'test-token',
+            'organization' => 'acme',
+            'server' => '101',
+            'site' => '201',
+        ])
+        ->call('save')
+        ->assertHasNoFormErrors()
+        ->assertNotified();
+
+    $setting = ForgeInsightsSetting::query()->first();
+
+    expect($setting->organization)->toBe('acme');
+    expect($setting->server)->toBe('101');
+    expect($setting->site)->toBe('201');
 });
 
 it('notifies but does not persist when the connection test fails', function () {

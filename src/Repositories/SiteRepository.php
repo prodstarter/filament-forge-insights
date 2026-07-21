@@ -18,7 +18,7 @@ class SiteRepository implements SiteRepositoryInterface
 
     public function all(int | string $serverId): Collection
     {
-        return ForgeCache::remember(
+        $sites = ForgeCache::remember(
             'sites:' . config('forge-insights.organization') . ":{$serverId}",
             config('forge-insights.cache.sites', 600),
             fn () => collect(
@@ -28,6 +28,16 @@ class SiteRepository implements SiteRepositoryInterface
                     ->all(),
             ),
         );
+
+        $scopedSiteId = config('forge-insights.site');
+
+        if (blank($scopedSiteId)) {
+            return $sites;
+        }
+
+        return $sites
+            ->filter(fn (SiteData $site) => (string) $site->id === (string) $scopedSiteId)
+            ->values();
     }
 
     public function find(int | string $serverId, int | string $id): ?SiteData

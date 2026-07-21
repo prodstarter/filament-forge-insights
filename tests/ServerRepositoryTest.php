@@ -48,6 +48,22 @@ it('finds a single server by id', function () {
     expect($server->name)->toBe('app-staging');
 });
 
+it('narrows the server list to the scoped server when one is configured', function () {
+    config(['forge-insights.server' => 102]);
+
+    MockClient::global([
+        ListServersRequest::class => MockResponse::make(
+            json_decode(file_get_contents(__DIR__ . '/Fixtures/servers.json'), true),
+            200,
+        ),
+    ]);
+
+    $servers = app(ServerRepositoryInterface::class)->all();
+
+    expect($servers)->toHaveCount(1);
+    expect($servers->first()->name)->toBe('app-staging');
+});
+
 it('caches the server list so a second call does not re-hit the api', function () {
     $mockClient = MockClient::global([
         ListServersRequest::class => MockResponse::make(

@@ -18,7 +18,7 @@ class ServerRepository implements ServerRepositoryInterface
 
     public function all(): Collection
     {
-        return ForgeCache::remember(
+        $servers = ForgeCache::remember(
             'servers:' . config('forge-insights.organization'),
             config('forge-insights.cache.servers', 600),
             fn () => collect(
@@ -28,6 +28,16 @@ class ServerRepository implements ServerRepositoryInterface
                     ->all(),
             ),
         );
+
+        $scopedServerId = config('forge-insights.server');
+
+        if (blank($scopedServerId)) {
+            return $servers;
+        }
+
+        return $servers
+            ->filter(fn (ServerData $server) => (string) $server->id === (string) $scopedServerId)
+            ->values();
     }
 
     public function find(int | string $id): ?ServerData

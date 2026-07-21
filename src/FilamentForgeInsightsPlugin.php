@@ -4,13 +4,13 @@ namespace Prodstarter\FilamentForgeInsights;
 
 use Filament\Contracts\Plugin;
 use Filament\Panel;
-use Prodstarter\FilamentForgeInsights\Filament\Pages\InfrastructureDashboard;
 use Prodstarter\FilamentForgeInsights\Filament\Pages\ListDatabases;
 use Prodstarter\FilamentForgeInsights\Filament\Pages\ListDeployments;
 use Prodstarter\FilamentForgeInsights\Filament\Pages\ListServers;
 use Prodstarter\FilamentForgeInsights\Filament\Pages\ListSites;
 use Prodstarter\FilamentForgeInsights\Filament\Pages\QueueWorkers;
 use Prodstarter\FilamentForgeInsights\Filament\Pages\ScheduledJobs;
+use Prodstarter\FilamentForgeInsights\Filament\Pages\ServerDashboard;
 use Prodstarter\FilamentForgeInsights\Filament\Pages\Settings;
 use Prodstarter\FilamentForgeInsights\Filament\Pages\SslOverview;
 use Prodstarter\FilamentForgeInsights\Settings\SettingsManager;
@@ -54,7 +54,7 @@ class FilamentForgeInsightsPlugin implements Plugin
         }
 
         $panel->pages([
-            InfrastructureDashboard::class,
+            ServerDashboard::class,
             ListServers::class,
             ListSites::class,
             ListDeployments::class,

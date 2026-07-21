@@ -15,6 +15,7 @@ use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
 use Illuminate\Support\Collection;
 use Prodstarter\FilamentForgeInsights\Data\ScheduledJobData;
+use Prodstarter\FilamentForgeInsights\Filament\Pages\Concerns\HidesWhenScopedToSite;
 use Prodstarter\FilamentForgeInsights\Repositories\Contracts\ScheduledJobRepositoryInterface;
 use Prodstarter\FilamentForgeInsights\Repositories\Contracts\ServerRepositoryInterface;
 use Prodstarter\FilamentForgeInsights\Settings\SettingsManager;
@@ -22,6 +23,7 @@ use UnitEnum;
 
 class ScheduledJobs extends Page implements HasActions, HasTable
 {
+    use HidesWhenScopedToSite;
     use InteractsWithActions;
     use InteractsWithTable;
 
@@ -33,7 +35,7 @@ class ScheduledJobs extends Page implements HasActions, HasTable
 
     public static function getNavigationGroup(): string | UnitEnum | null
     {
-        return config('forge-insights.navigation_group', 'Infrastructure');
+        return config('forge-insights.navigation_group', 'Server');
     }
 
     public function content(Schema $schema): Schema

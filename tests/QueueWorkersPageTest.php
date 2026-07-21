@@ -49,3 +49,17 @@ it('renders workers across every server when connected', function () {
         ->assertSeeText('php artisan queue:work')
         ->assertSeeText('app-production');
 });
+
+it('is not accessible when scoped down to a single site', function () {
+    ForgeInsightsSetting::query()->create([
+        'token' => 'test-token',
+        'organization' => 'acme',
+        'server' => '101',
+        'site' => '201',
+    ]);
+
+    app(SettingsManager::class)->applyToConfig();
+
+    expect(QueueWorkers::canAccess())->toBeFalse();
+    expect(QueueWorkers::shouldRegisterNavigation())->toBeFalse();
+});

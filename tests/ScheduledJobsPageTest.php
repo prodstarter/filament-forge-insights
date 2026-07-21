@@ -49,3 +49,17 @@ it('renders scheduled jobs across every server when connected', function () {
         ->assertSeeText('Update Composer')
         ->assertSeeText('app-production');
 });
+
+it('is not accessible when scoped down to a single site', function () {
+    ForgeInsightsSetting::query()->create([
+        'token' => 'test-token',
+        'organization' => 'acme',
+        'server' => '101',
+        'site' => '201',
+    ]);
+
+    app(SettingsManager::class)->applyToConfig();
+
+    expect(ScheduledJobs::canAccess())->toBeFalse();
+    expect(ScheduledJobs::shouldRegisterNavigation())->toBeFalse();
+});

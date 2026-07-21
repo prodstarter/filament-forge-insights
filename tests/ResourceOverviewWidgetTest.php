@@ -1,12 +1,10 @@
 <?php
 
-use Prodstarter\FilamentForgeInsights\Filament\Pages\ServerDashboard;
-use Prodstarter\FilamentForgeInsights\Filament\Widgets\RecentDeploymentsWidget;
 use Prodstarter\FilamentForgeInsights\Filament\Widgets\ResourceOverviewWidget;
-use Prodstarter\FilamentForgeInsights\Filament\Widgets\ServerHealthTableWidget;
 use Prodstarter\FilamentForgeInsights\Forge\Requests\ListDeploymentsRequest;
 use Prodstarter\FilamentForgeInsights\Forge\Requests\ListServersRequest;
 use Prodstarter\FilamentForgeInsights\Forge\Requests\ListSitesRequest;
+use Prodstarter\FilamentForgeInsights\Forge\Requests\ListSslCertificatesRequest;
 use Prodstarter\FilamentForgeInsights\Settings\ForgeInsightsSetting;
 use Prodstarter\FilamentForgeInsights\Settings\SettingsManager;
 use Saloon\Http\Faking\MockClient;
@@ -19,23 +17,6 @@ beforeEach(function () {
     $this->actingAs(User::factory()->create());
 
     MockClient::destroyGlobal();
-});
-
-it('renders when not connected', function () {
-    livewire(ServerDashboard::class)->assertSuccessful();
-
-    livewire(ResourceOverviewWidget::class)->assertSuccessful();
-    livewire(ServerHealthTableWidget::class)->assertSuccessful();
-    livewire(RecentDeploymentsWidget::class)->assertSuccessful();
-});
-
-it('renders the widgets with real data when connected', function () {
-    ForgeInsightsSetting::query()->create([
-        'token' => 'test-token',
-        'organization' => 'acme',
-    ]);
-
-    app(SettingsManager::class)->applyToConfig();
 
     MockClient::global([
         ListServersRequest::class => MockResponse::make(
@@ -50,21 +31,55 @@ it('renders the widgets with real data when connected', function () {
             json_decode(file_get_contents(__DIR__ . '/Fixtures/deployments.json'), true),
             200,
         ),
+        ListSslCertificatesRequest::class => MockResponse::make(
+            json_decode(file_get_contents(__DIR__ . '/Fixtures/ssl-certificates.json'), true),
+            200,
+        ),
+    ]);
+});
+
+it('shows organization-wide stats when nothing is scoped', function () {
+    ForgeInsightsSetting::query()->create([
+        'token' => 'test-token',
+        'organization' => 'acme',
     ]);
 
-    livewire(ServerDashboard::class)->assertSuccessful();
+    app(SettingsManager::class)->applyToConfig();
 
     livewire(ResourceOverviewWidget::class)
         ->assertSuccessful()
-        ->assertSeeText('Connected')
-        ->assertSeeText('Deployments today');
+        ->assertSeeText('Servers')
+        ->assertSeeText('Websites');
+});
 
-    livewire(ServerHealthTableWidget::class)
+it('shows a single server\'s stats when scoped to a server', function () {
+    ForgeInsightsSetting::query()->create([
+        'token' => 'test-token',
+        'organization' => 'acme',
+        'server' => '101',
+    ]);
+
+    app(SettingsManager::class)->applyToConfig();
+
+    livewire(ResourceOverviewWidget::class)
         ->assertSuccessful()
         ->assertSeeText('app-production')
-        ->assertSeeText('app-staging');
+        ->assertSeeText('Sites');
+});
 
-    livewire(RecentDeploymentsWidget::class)
+it('shows a single site\'s stats when scoped to a site', function () {
+    ForgeInsightsSetting::query()->create([
+        'token' => 'test-token',
+        'organization' => 'acme',
+        'server' => '101',
+        'site' => '201',
+    ]);
+
+    app(SettingsManager::class)->applyToConfig();
+
+    livewire(ResourceOverviewWidget::class)
         ->assertSuccessful()
-        ->assertSeeText('Update dependencies');
+        ->assertSeeText('example.com')
+        ->assertSeeText('Hosting')
+        ->assertSeeText('SSL');
 });

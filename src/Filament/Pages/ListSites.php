@@ -33,7 +33,7 @@ class ListSites extends Page implements HasActions, HasTable
 
     public static function getNavigationGroup(): string | UnitEnum | null
     {
-        return config('forge-insights.navigation_group', 'Infrastructure');
+        return config('forge-insights.navigation_group', 'Server');
     }
 
     public function content(Schema $schema): Schema
