@@ -24,9 +24,19 @@ beforeEach(function () {
 it('renders when not connected', function () {
     livewire(ServerDashboard::class)->assertSuccessful();
 
-    livewire(ResourceOverviewWidget::class)->assertSuccessful();
-    livewire(ServerHealthTableWidget::class)->assertSuccessful();
-    livewire(RecentDeploymentsWidget::class)->assertSuccessful();
+    livewire(ResourceOverviewWidget::class)
+        ->assertSuccessful()
+        ->assertSeeText('Not connected');
+
+    livewire(ServerHealthTableWidget::class)
+        ->assertSuccessful()
+        ->assertSeeText('Not connected to Forge')
+        ->assertSeeText('Go to Settings');
+
+    livewire(RecentDeploymentsWidget::class)
+        ->assertSuccessful()
+        ->assertSeeText('No deployments yet')
+        ->assertSeeText('Go to Settings');
 });
 
 it('renders the widgets with real data when connected', function () {
@@ -66,5 +76,6 @@ it('renders the widgets with real data when connected', function () {
 
     livewire(RecentDeploymentsWidget::class)
         ->assertSuccessful()
-        ->assertSeeText('Update dependencies');
+        ->assertSeeText('Update dependencies')
+        ->assertDontSeeText('Go to Settings');
 });
