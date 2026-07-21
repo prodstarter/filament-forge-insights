@@ -61,6 +61,18 @@ readonly class DeploymentData
         return $this->status === 'finished';
     }
 
+    /**
+     * A Filament color name for the deployment's status badge.
+     */
+    public function statusColor(): string
+    {
+        return match ($this->status) {
+            'finished' => 'success',
+            'failed' => 'danger',
+            default => 'gray',
+        };
+    }
+
     public function durationInSeconds(): ?int
     {
         if (! $this->startedAt || ! $this->endedAt) {

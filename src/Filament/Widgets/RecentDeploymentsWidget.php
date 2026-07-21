@@ -78,11 +78,7 @@ class RecentDeploymentsWidget extends BaseWidget
                 'commitBranch' => $deployment->commitBranch,
                 'triggeredBy' => $deployment->triggeredBy,
                 'status' => $deployment->status,
-                'statusColor' => match ($deployment->status) {
-                    'finished' => 'success',
-                    'failed' => 'danger',
-                    default => 'gray',
-                },
+                'statusColor' => $deployment->statusColor(),
                 'duration' => $deployment->formattedDuration(),
                 'when' => $deployment->createdAt?->diffForHumans(),
             ]]);

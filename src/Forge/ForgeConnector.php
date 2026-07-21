@@ -7,6 +7,7 @@ use Prodstarter\FilamentForgeInsights\Exceptions\ForgeNotConfiguredException;
 use Saloon\Contracts\Authenticator;
 use Saloon\Http\Auth\TokenAuthenticator;
 use Saloon\Http\Connector;
+use Saloon\Http\PendingRequest;
 use Saloon\Http\Request;
 use Saloon\Http\Response;
 use Saloon\PaginationPlugin\Contracts\HasPagination;
@@ -16,10 +17,26 @@ use Saloon\RateLimitPlugin\Contracts\RateLimitStore;
 use Saloon\RateLimitPlugin\Limit;
 use Saloon\RateLimitPlugin\Stores\LaravelCacheStore;
 use Saloon\RateLimitPlugin\Traits\HasRateLimits;
+use Saloon\Traits\Plugins\HasTimeout;
 
 class ForgeConnector extends Connector implements HasPagination
 {
     use HasRateLimits;
+    use HasTimeout;
+
+    protected float $connectTimeout = 5;
+
+    protected float $requestTimeout = 15;
+
+    /**
+     * Retry transient failures (network blips, momentary 5xx) a couple of
+     * times with a short exponential backoff before giving up.
+     */
+    public ?int $tries = 3;
+
+    public ?int $retryInterval = 200;
+
+    public ?bool $useExponentialBackoff = true;
 
     /**
      * Pass explicit $token/$organization to test unsaved credentials (e.g. from
@@ -30,6 +47,15 @@ class ForgeConnector extends Connector implements HasPagination
         protected readonly ?string $token = null,
         protected readonly int | string | null $organization = null,
     ) {}
+
+    /**
+     * Always throw on a failed response, so callers can rely on catching an
+     * exception instead of remembering to check `successful()` themselves.
+     */
+    public function boot(PendingRequest $pendingRequest): void
+    {
+        $pendingRequest->middleware()->onResponse(fn (Response $response): Response => $response->throw());
+    }
 
     public function resolveBaseUrl(): string
     {

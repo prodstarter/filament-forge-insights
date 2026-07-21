@@ -143,9 +143,11 @@ class SettingsManager
 
     public function testConnection(string $token, string $organization): bool
     {
-        $response = (new ForgeConnector($token, $organization))->send(new ListServersRequest);
+        // The connector throws on a failed response, so reaching this line
+        // at all means the token/organization combination is valid.
+        (new ForgeConnector($token, $organization))->send(new ListServersRequest);
 
-        return $response->successful();
+        return true;
     }
 
     protected function isInstalled(): bool

@@ -17,14 +17,16 @@ use Illuminate\Support\Carbon;
  */
 class ForgeInsightsSetting extends Model
 {
-    protected $table = 'forge_insights_settings';
-
     protected $fillable = [
         'token',
         'organization',
         'server',
         'site',
         'connected_at',
+    ];
+
+    protected $hidden = [
+        'token',
     ];
 
     /**
