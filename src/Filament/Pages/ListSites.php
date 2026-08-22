@@ -13,8 +13,10 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Prodstarter\FilamentForgeInsights\Data\SiteData;
+use Prodstarter\FilamentForgeInsights\Filament\Pages\Concerns\HidesWhenScopedToSite;
 use Prodstarter\FilamentForgeInsights\Repositories\Contracts\ServerRepositoryInterface;
 use Prodstarter\FilamentForgeInsights\Repositories\Contracts\SiteRepositoryInterface;
 use Prodstarter\FilamentForgeInsights\Settings\SettingsManager;
@@ -22,6 +24,7 @@ use UnitEnum;
 
 class ListSites extends Page implements HasActions, HasTable
 {
+    use HidesWhenScopedToSite;
     use InteractsWithActions;
     use InteractsWithTable;
 
@@ -33,7 +36,7 @@ class ListSites extends Page implements HasActions, HasTable
 
     public static function getNavigationGroup(): string | UnitEnum | null
     {
-        return config('forge-insights.navigation_group', 'Server');
+        return config('forge-insights.navigation_group', 'Infrastructure');
     }
 
     public function content(Schema $schema): Schema
@@ -46,7 +49,9 @@ class ListSites extends Page implements HasActions, HasTable
     public function table(Table $table): Table
     {
         return $table
-            ->records(fn (): Collection => $this->getRows())
+            ->records(fn (int $page, int $recordsPerPage): LengthAwarePaginator => $this->paginateRows($page, $recordsPerPage))
+            ->paginated([10, 25, 50])
+            ->defaultPaginationPageOption(10)
             ->columns([
                 TextColumn::make('domain')
                     ->searchable()
@@ -75,6 +80,18 @@ class ListSites extends Page implements HasActions, HasTable
                 TextColumn::make('status')
                     ->badge(),
             ]);
+    }
+
+    protected function paginateRows(int $page, int $recordsPerPage): LengthAwarePaginator
+    {
+        $rows = $this->getRows();
+
+        return new LengthAwarePaginator(
+            $rows->forPage($page, $recordsPerPage),
+            total: $rows->count(),
+            perPage: $recordsPerPage,
+            currentPage: $page,
+        );
     }
 
     /**

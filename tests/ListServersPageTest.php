@@ -45,3 +45,16 @@ it('renders servers when connected', function () {
         ->assertSeeText('app-production')
         ->assertSeeText('app-staging');
 });
+
+it('is not accessible when scoped down to a single server', function () {
+    ForgeInsightsSetting::query()->create([
+        'token' => 'test-token',
+        'organization' => 'acme',
+        'server' => '101',
+    ]);
+
+    app(SettingsManager::class)->applyToConfig();
+
+    expect(ListServers::canAccess())->toBeFalse();
+    expect(ListServers::shouldRegisterNavigation())->toBeFalse();
+});

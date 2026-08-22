@@ -2,10 +2,8 @@
 
 namespace Prodstarter\FilamentForgeInsights;
 
-use Filament\Support\Assets\AlpineComponent;
 use Filament\Support\Assets\Asset;
 use Filament\Support\Assets\Css;
-use Filament\Support\Assets\Js;
 use Filament\Support\Facades\FilamentAsset;
 use Filament\Support\Facades\FilamentIcon;
 use Illuminate\Filesystem\Filesystem;
@@ -122,9 +120,7 @@ class FilamentForgeInsightsServiceProvider extends PackageServiceProvider
     protected function getAssets(): array
     {
         return [
-            // AlpineComponent::make('filament-forge-insights', __DIR__ . '/../resources/dist/components/filament-forge-insights.js'),
-            // Css::make('filament-forge-insights-styles', __DIR__ . '/../resources/dist/filament-forge-insights.css'),
-            // Js::make('filament-forge-insights-scripts', __DIR__ . '/../resources/dist/filament-forge-insights.js'),
+            Css::make('filament-forge-insights-styles', __DIR__ . '/../resources/dist/filament-forge-insights.css'),
         ];
     }
 

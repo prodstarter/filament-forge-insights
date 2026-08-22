@@ -13,8 +13,10 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Prodstarter\FilamentForgeInsights\Data\ServerData;
+use Prodstarter\FilamentForgeInsights\Filament\Pages\Concerns\HidesWhenScopedToServer;
 use Prodstarter\FilamentForgeInsights\Repositories\Contracts\ServerRepositoryInterface;
 use Prodstarter\FilamentForgeInsights\Repositories\Contracts\SiteRepositoryInterface;
 use Prodstarter\FilamentForgeInsights\Settings\SettingsManager;
@@ -22,6 +24,7 @@ use UnitEnum;
 
 class ListServers extends Page implements HasActions, HasTable
 {
+    use HidesWhenScopedToServer;
     use InteractsWithActions;
     use InteractsWithTable;
 
@@ -33,7 +36,7 @@ class ListServers extends Page implements HasActions, HasTable
 
     public static function getNavigationGroup(): string | UnitEnum | null
     {
-        return config('forge-insights.navigation_group', 'Server');
+        return config('forge-insights.navigation_group', 'Infrastructure');
     }
 
     public function content(Schema $schema): Schema
@@ -46,7 +49,9 @@ class ListServers extends Page implements HasActions, HasTable
     public function table(Table $table): Table
     {
         return $table
-            ->records(fn (): Collection => $this->getRows())
+            ->records(fn (int $page, int $recordsPerPage): LengthAwarePaginator => $this->paginateRows($page, $recordsPerPage))
+            ->paginated([10, 25, 50])
+            ->defaultPaginationPageOption(10)
             ->columns([
                 TextColumn::make('name')
                     ->searchable(),
@@ -71,6 +76,18 @@ class ListServers extends Page implements HasActions, HasTable
             ]);
     }
 
+    protected function paginateRows(int $page, int $recordsPerPage): LengthAwarePaginator
+    {
+        $rows = $this->getRows();
+
+        return new LengthAwarePaginator(
+            $rows->forPage($page, $recordsPerPage),
+            total: $rows->count(),
+            perPage: $recordsPerPage,
+            currentPage: $page,
+        );
+    }
+
     /**
      * @return Collection<int|string, array<string, mixed>>
      */
@@ -85,12 +102,12 @@ class ListServers extends Page implements HasActions, HasTable
         return app(ServerRepositoryInterface::class)->all()
             ->mapWithKeys(fn (ServerData $server) => [$server->id => [
                 'name' => $server->name,
-                'provider' => $server->provider,
+                'provider' => $server->formattedProvider(),
                 'region' => $server->region,
                 'size' => $server->size,
                 'ipAddress' => $server->ipAddress,
-                'phpVersion' => $server->phpVersion,
-                'databaseType' => $server->databaseType,
+                'phpVersion' => $server->formattedPhpVersion(),
+                'databaseType' => $server->formattedDatabaseType(),
                 'sites' => $sites->all($server->id)->count(),
                 'isOnline' => $server->isOnline(),
             ]]);

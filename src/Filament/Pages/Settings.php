@@ -33,7 +33,7 @@ class Settings extends Page
 
     public static function getNavigationGroup(): string | UnitEnum | null
     {
-        return config('forge-insights.navigation_group', 'Server');
+        return config('forge-insights.navigation_group', 'Infrastructure');
     }
 
     /**

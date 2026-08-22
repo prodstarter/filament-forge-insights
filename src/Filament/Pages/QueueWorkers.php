@@ -13,6 +13,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Prodstarter\FilamentForgeInsights\Data\WorkerData;
 use Prodstarter\FilamentForgeInsights\Filament\Pages\Concerns\HidesWhenScopedToSite;
@@ -35,7 +36,7 @@ class QueueWorkers extends Page implements HasActions, HasTable
 
     public static function getNavigationGroup(): string | UnitEnum | null
     {
-        return config('forge-insights.navigation_group', 'Server');
+        return config('forge-insights.navigation_group', 'Infrastructure');
     }
 
     public function content(Schema $schema): Schema
@@ -48,7 +49,9 @@ class QueueWorkers extends Page implements HasActions, HasTable
     public function table(Table $table): Table
     {
         return $table
-            ->records(fn (): Collection => $this->getRows())
+            ->records(fn (int $page, int $recordsPerPage): LengthAwarePaginator => $this->paginateRows($page, $recordsPerPage))
+            ->paginated([10, 25, 50])
+            ->defaultPaginationPageOption(10)
             ->columns([
                 TextColumn::make('server')
                     ->searchable(),
@@ -64,6 +67,18 @@ class QueueWorkers extends Page implements HasActions, HasTable
                     ->formatStateUsing(fn (bool $state): string => $state ? 'Running' : 'Stopped')
                     ->color(fn (bool $state): string => $state ? 'success' : 'danger'),
             ]);
+    }
+
+    protected function paginateRows(int $page, int $recordsPerPage): LengthAwarePaginator
+    {
+        $rows = $this->getRows();
+
+        return new LengthAwarePaginator(
+            $rows->forPage($page, $recordsPerPage),
+            total: $rows->count(),
+            perPage: $recordsPerPage,
+            currentPage: $page,
+        );
     }
 
     /**

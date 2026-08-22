@@ -15,6 +15,20 @@ class ForgeCache
     protected const EPOCH_KEY = 'forge-insights:cache-epoch';
 
     /**
+     * The epoch only changes when flush() is explicitly called (the
+     * Settings page's "Sync Now"), so re-reading it from the cache backend
+     * on every single get()/put()/has() call — which key() does — is pure
+     * waste within one request: a dashboard render touching a few dozen
+     * cache keys was paying for a few dozen extra queries just for this.
+     * Memoized per PHP process, which for a standard request-per-process
+     * setup (PHP-FPM, Herd) means per request; a long-running worker
+     * (queue, Octane) could see a flush() from elsewhere lag by up to that
+     * worker's lifetime, which is an acceptable trade for this plugin's
+     * read-mostly, TTL-bounded data.
+     */
+    protected static ?int $memoizedEpoch = null;
+
+    /**
      * Not all cache drivers are binary-safe for arbitrary serialized PHP
      * objects (Laravel's database driver, for example, only base64-encodes
      * values for Postgres/SQLite — MySQL connections store the raw
@@ -27,23 +41,61 @@ class ForgeCache
      */
     public static function remember(string $key, int $ttl, Closure $callback): mixed
     {
-        $cacheKey = static::key($key);
+        $value = static::get($key);
 
-        $cached = Cache::get($cacheKey);
-
-        if (is_string($cached)) {
-            $value = @unserialize(base64_decode($cached));
-
-            if ($value !== false) {
-                return $value;
-            }
+        if (! is_null($value)) {
+            return $value;
         }
 
         $value = $callback();
 
-        Cache::put($cacheKey, base64_encode(serialize($value)), $ttl);
+        static::put($key, $value, $ttl);
 
         return $value;
+    }
+
+    /**
+     * Read a key directly, decoding it the same way remember() does,
+     * without computing or storing anything on a miss. Returns null for a
+     * miss (or a corrupted entry) — every value this class ever stores is a
+     * Collection, never null itself, so null is an unambiguous "not
+     * cached" signal here.
+     *
+     * Prefer this over has() + remember() when you already know what to do
+     * on a miss yourself (e.g. batching several misses into one pooled
+     * fetch): has() then remember() costs two cache reads for the same key
+     * where this costs one.
+     */
+    public static function get(string $key): mixed
+    {
+        $cached = Cache::get(static::key($key));
+
+        if (! is_string($cached)) {
+            return null;
+        }
+
+        $value = @unserialize(base64_decode($cached));
+
+        return $value === false ? null : $value;
+    }
+
+    /**
+     * Store a value directly, for when the caller already knows it needs
+     * fetching (e.g. one item from a pooled batch) and doesn't need
+     * remember()'s own read-first check repeated.
+     */
+    public static function put(string $key, mixed $value, int $ttl): void
+    {
+        Cache::put(static::key($key), base64_encode(serialize($value)), $ttl);
+    }
+
+    /**
+     * Check whether a key is already cached, without computing or storing
+     * anything on a miss.
+     */
+    public static function has(string $key): bool
+    {
+        return Cache::has(static::key($key));
     }
 
     public static function key(string $key): string
@@ -53,11 +105,13 @@ class ForgeCache
 
     public static function flush(): void
     {
-        Cache::put(static::EPOCH_KEY, static::epoch() + 1);
+        static::$memoizedEpoch = static::epoch() + 1;
+
+        Cache::put(static::EPOCH_KEY, static::$memoizedEpoch);
     }
 
     protected static function epoch(): int
     {
-        return (int) Cache::get(static::EPOCH_KEY, 0);
+        return static::$memoizedEpoch ??= (int) Cache::get(static::EPOCH_KEY, 0);
     }
 }

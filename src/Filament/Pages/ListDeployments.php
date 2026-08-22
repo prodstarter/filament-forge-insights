@@ -13,6 +13,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Prodstarter\FilamentForgeInsights\Data\DeploymentData;
 use Prodstarter\FilamentForgeInsights\Repositories\Contracts\DeploymentRepositoryInterface;
@@ -34,7 +35,7 @@ class ListDeployments extends Page implements HasActions, HasTable
 
     public static function getNavigationGroup(): string | UnitEnum | null
     {
-        return config('forge-insights.navigation_group', 'Server');
+        return config('forge-insights.navigation_group', 'Infrastructure');
     }
 
     public function content(Schema $schema): Schema
@@ -47,7 +48,9 @@ class ListDeployments extends Page implements HasActions, HasTable
     public function table(Table $table): Table
     {
         return $table
-            ->records(fn (): Collection => $this->getRows())
+            ->records(fn (int $page, int $recordsPerPage): LengthAwarePaginator => $this->paginateRows($page, $recordsPerPage))
+            ->paginated([10, 25, 50])
+            ->defaultPaginationPageOption(10)
             ->columns([
                 TextColumn::make('site')
                     ->searchable(),
@@ -69,6 +72,26 @@ class ListDeployments extends Page implements HasActions, HasTable
     }
 
     /**
+     * Forge's deployment history per site is finite and already fetched in
+     * full by the repository (it walks every page the API returns), so this
+     * is a generous safety cap rather than a real page size — the actual
+     * per-page slicing happens in paginateRows().
+     */
+    protected const MAX_DEPLOYMENTS = 500;
+
+    protected function paginateRows(int $page, int $recordsPerPage): LengthAwarePaginator
+    {
+        $rows = $this->getRows();
+
+        return new LengthAwarePaginator(
+            $rows->forPage($page, $recordsPerPage),
+            total: $rows->count(),
+            perPage: $recordsPerPage,
+            currentPage: $page,
+        );
+    }
+
+    /**
      * @return Collection<int|string, array<string, mixed>>
      */
     protected function getRows(): Collection
@@ -81,7 +104,7 @@ class ListDeployments extends Page implements HasActions, HasTable
             ->flatMap(fn ($server) => app(SiteRepositoryInterface::class)->all($server->id))
             ->keyBy('id');
 
-        return app(DeploymentRepositoryInterface::class)->recent(50)
+        return app(DeploymentRepositoryInterface::class)->recent(static::MAX_DEPLOYMENTS)
             ->mapWithKeys(fn (DeploymentData $deployment) => [$deployment->id => [
                 'site' => $sites->get($deployment->siteId)?->domain,
                 'commitMessage' => $deployment->commitMessage,

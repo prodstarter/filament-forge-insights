@@ -12,7 +12,6 @@ use Prodstarter\FilamentForgeInsights\Filament\Pages\QueueWorkers;
 use Prodstarter\FilamentForgeInsights\Filament\Pages\ScheduledJobs;
 use Prodstarter\FilamentForgeInsights\Filament\Pages\ServerDashboard;
 use Prodstarter\FilamentForgeInsights\Filament\Pages\Settings;
-use Prodstarter\FilamentForgeInsights\Filament\Pages\SslOverview;
 use Prodstarter\FilamentForgeInsights\Settings\SettingsManager;
 
 class FilamentForgeInsightsPlugin implements Plugin
@@ -58,7 +57,6 @@ class FilamentForgeInsightsPlugin implements Plugin
             ListServers::class,
             ListSites::class,
             ListDeployments::class,
-            SslOverview::class,
             ListDatabases::class,
             ScheduledJobs::class,
             QueueWorkers::class,

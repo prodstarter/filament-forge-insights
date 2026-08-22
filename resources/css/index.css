@@ -1,1 +1,43 @@
-@import '../../vendor/filament/filament/resources/css/theme.css';
+/*
+ * This stylesheet is registered as its own <link> alongside Filament's core
+ * CSS and any consuming app's custom theme. Whichever stylesheet is first to
+ * mention cascade layer names fixes their relative order for the WHOLE page,
+ * not just itself. Declaring the canonical Tailwind/Filament order (theme,
+ * base, components, utilities) up front — before either import below creates
+ * the "theme" and "utilities" layers — guarantees `utilities` still ends up
+ * after `base`/`components` even though this file loads before Filament's
+ * own base layer is ever declared. Without this, "theme" and "utilities"
+ * become the first two layers ever seen on the page with nothing between
+ * them, and Filament's later base/reset layer can end up outranking our
+ * utility classes (zeroing out margin/padding/spacing utilities).
+ */
+@layer theme, base, components, utilities;
+
+@import 'tailwindcss/theme.css' layer(theme);
+@import 'tailwindcss/utilities.css' layer(utilities);
+
+/*
+ * Filament's own CSS also declares a :root `--font-sans` token, tied to the
+ * panel's configured font. This bundle never uses a `font-sans` utility
+ * class, so its copy of that token only exists to feed the color/spacing
+ * generation below and serves no purpose here — dropping it avoids two
+ * independently-built Tailwind bundles competing over which one's font
+ * stack wins on the shared `:root` scope.
+ */
+@theme {
+    --font-sans: initial;
+    --font-serif: initial;
+    --font-mono: initial;
+}
+
+@source '../views/**/*.blade.php';
+@source '../../src/**/*.php';
+
+/*
+ * Filament toggles dark mode with a `.dark` class on the document element
+ * rather than relying on the OS `prefers-color-scheme`, so `dark:` utilities
+ * compiled here need to follow the same strategy — otherwise they'd react to
+ * the visitor's OS setting instead of the theme switcher the panel actually
+ * uses. This must match `vendor/filament/filament/resources/css/index.css`.
+ */
+@variant dark (&:where(.dark, .dark *));

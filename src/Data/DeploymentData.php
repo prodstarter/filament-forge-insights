@@ -4,6 +4,7 @@ namespace Prodstarter\FilamentForgeInsights\Data;
 
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Arr;
+use Prodstarter\FilamentForgeInsights\Support\HealthStatus;
 
 readonly class DeploymentData
 {
@@ -70,6 +71,30 @@ readonly class DeploymentData
             'finished' => 'success',
             'failed' => 'danger',
             default => 'gray',
+        };
+    }
+
+    public function health(): HealthStatus
+    {
+        return match ($this->status) {
+            'finished' => HealthStatus::Healthy,
+            'failed' => HealthStatus::Critical,
+            default => HealthStatus::Unknown,
+        };
+    }
+
+    /**
+     * A client-facing label for the deployment's status, using the plugin's
+     * "Successful" / "Failed" health language rather than Forge's internal
+     * "finished" / "failed" status values.
+     */
+    public function statusLabel(): string
+    {
+        return match ($this->status) {
+            'finished' => 'Successful',
+            'failed' => 'Failed',
+            null => 'Unknown',
+            default => ucfirst($this->status),
         };
     }
 

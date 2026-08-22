@@ -20,7 +20,7 @@ return [
 
     'base_url' => env('FORGE_API_BASE_URL', 'https://forge.laravel.com/api'),
 
-    'navigation_group' => 'Server',
+    'navigation_group' => 'Infrastructure',
 
     /*
      * How long (in seconds) each resource's data is cached before it is

@@ -18,6 +18,7 @@ use Saloon\RateLimitPlugin\Limit;
 use Saloon\RateLimitPlugin\Stores\LaravelCacheStore;
 use Saloon\RateLimitPlugin\Traits\HasRateLimits;
 use Saloon\Traits\Plugins\HasTimeout;
+use Throwable;
 
 class ForgeConnector extends Connector implements HasPagination
 {
@@ -90,18 +91,86 @@ class ForgeConnector extends Connector implements HasPagination
     }
 
     /**
+     * No proactive local limit here — only Saloon's automatic 429 detector
+     * (always active via HasRateLimits, regardless of what this returns)
+     * protects against Forge's real limit. A hand-tracked local counter
+     * sounds like it should be strictly safer, but it isn't a clean win in
+     * practice: every request pays for a cache read + write per configured
+     * limit (roughly half of all cache activity on a cold page load was
+     * this bookkeeping, measured directly), and it still doesn't fully
+     * prevent real 429s — concurrent pooled requests can all pass a "still
+     * under budget" check before any of them records its own usage, so a
+     * burst can clear the local check and still trip Forge's actual limit.
+     * Given it doesn't reliably prevent the failure mode it exists for, but
+     * reliably costs overhead on every request, reacting to a real 429 when
+     * it happens is the better trade here.
+     *
      * @return array<int, Limit>
      */
     protected function resolveLimits(): array
     {
-        return [
-            Limit::allow(120)->everyMinute(),
-        ];
+        return [];
     }
 
     protected function resolveRateLimitStore(): RateLimitStore
     {
         return new LaravelCacheStore(Cache::store());
+    }
+
+    /**
+     * Saloon's default prefix is just the connector's class name, so every
+     * token/organization sharing this connector shares one rate limit
+     * bucket — switching Forge accounts inherits whatever throttling the
+     * previous one triggered. Scoping the prefix per token keeps each
+     * connected account's limit independent of the others.
+     */
+    protected function getLimiterPrefix(): ?string
+    {
+        $token = $this->token ?? config('forge-insights.token');
+
+        return 'ForgeConnector:' . substr(hash('sha256', (string) $token), 0, 12);
+    }
+
+    /**
+     * Send several single-page requests concurrently instead of one after
+     * another. Rate limiting and authentication apply exactly as they do
+     * for send() — only wall-clock time changes, since the underlying HTTP
+     * calls overlap instead of waiting for each other to finish. Only
+     * meaningful for requests you already know are a single page each;
+     * this does not paginate, it just fans out.
+     *
+     * @param  array<int|string, Request>  $requests
+     * @return array<int|string, Response>
+     *
+     * @throws Throwable if any request in the pool failed — the first
+     *                   exception encountered, matching what a sequential
+     *                   loop of send() calls would have thrown on its
+     *                   first failure.
+     */
+    public function poolRequests(array $requests, int $concurrency = 10): array
+    {
+        if ($requests === []) {
+            return [];
+        }
+
+        $responses = [];
+        $exceptions = [];
+
+        $this->pool($requests, $concurrency)
+            ->withResponseHandler(function (Response $response, int | string $key) use (&$responses): void {
+                $responses[$key] = $response;
+            })
+            ->withExceptionHandler(function (Throwable $exception, int | string $key) use (&$exceptions): void {
+                $exceptions[$key] = $exception;
+            })
+            ->send()
+            ->wait();
+
+        if ($exceptions !== []) {
+            throw reset($exceptions);
+        }
+
+        return $responses;
     }
 
     public function paginate(Request $request): Paginator

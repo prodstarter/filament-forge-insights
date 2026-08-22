@@ -4,6 +4,8 @@ namespace Prodstarter\FilamentForgeInsights\Repositories;
 
 use Illuminate\Support\Collection;
 use Prodstarter\FilamentForgeInsights\Data\DeploymentData;
+use Prodstarter\FilamentForgeInsights\Data\ServerData;
+use Prodstarter\FilamentForgeInsights\Data\SiteData;
 use Prodstarter\FilamentForgeInsights\Forge\ForgeConnector;
 use Prodstarter\FilamentForgeInsights\Forge\Requests\ListDeploymentsRequest;
 use Prodstarter\FilamentForgeInsights\Repositories\Contracts\DeploymentRepositoryInterface;
@@ -23,14 +25,9 @@ class DeploymentRepository implements DeploymentRepositoryInterface
     public function forSite(int | string $serverId, int | string $siteId): Collection
     {
         return ForgeCache::remember(
-            'deployments:' . config('forge-insights.organization') . ":{$serverId}:{$siteId}",
+            static::cacheKey($serverId, $siteId),
             config('forge-insights.cache.deployments', 120),
-            fn () => collect(
-                $this->connector->paginate(new ListDeploymentsRequest($serverId, $siteId))
-                    ->collect()
-                    ->map(fn (array $item) => DeploymentData::fromArray($serverId, $siteId, JsonApiResource::flattenItem($item)))
-                    ->all(),
-            ),
+            fn () => $this->fetch($serverId, $siteId),
         );
     }
 
@@ -40,19 +37,100 @@ class DeploymentRepository implements DeploymentRepositoryInterface
             'deployments:recent:' . config('forge-insights.organization') . ":{$limit}",
             config('forge-insights.cache.deployments', 120),
             function () use ($limit) {
-                $deployments = collect();
+                $servers = $this->servers->all();
+                $sitesByServer = $this->sites->allForServers($servers->pluck('id'));
 
-                foreach ($this->servers->all() as $server) {
-                    foreach ($this->sites->all($server->id) as $site) {
-                        $deployments = $deployments->merge($this->forSite($server->id, $site->id));
-                    }
-                }
+                /** @var Collection<int, array{serverId: int|string, siteId: int|string}> $pairs */
+                $pairs = $servers->flatMap(
+                    fn (ServerData $server) => $sitesByServer->get($server->id, collect())
+                        ->map(fn (SiteData $site) => ['serverId' => $server->id, 'siteId' => $site->id]),
+                )->values();
 
-                return $deployments
+                return $this->fetchForPairs($pairs)
                     ->sortByDesc(fn (DeploymentData $deployment) => $deployment->createdAt)
                     ->take($limit)
                     ->values();
             },
         );
+    }
+
+    /**
+     * Reads whatever's already cached for each pair directly, then sends
+     * one request per *uncached* pair concurrently instead of looping
+     * through forSite() one pair at a time — recent() otherwise dominates
+     * page load time on any organization with more than a handful of
+     * sites, since every site needs its own deployment history call.
+     * Reading with get() instead of has() + forSite() (i.e. remember())
+     * means each pair costs one cache read here instead of two. Only the
+     * first page is fetched this way (deployment history pages rarely go
+     * past one); a pair with more than one page falls back to forSite()'s
+     * normal, fully-paginated fetch.
+     *
+     * @param  Collection<int, array{serverId: int|string, siteId: int|string}>  $pairs
+     * @return Collection<int, DeploymentData>
+     */
+    protected function fetchForPairs(Collection $pairs): Collection
+    {
+        $results = collect();
+        $uncachedPairs = collect();
+
+        foreach ($pairs as $pair) {
+            $cached = ForgeCache::get(static::cacheKey($pair['serverId'], $pair['siteId']));
+
+            if (is_null($cached)) {
+                $uncachedPairs->push($pair);
+            } else {
+                $results = $results->merge($cached);
+            }
+        }
+
+        if ($uncachedPairs->isEmpty()) {
+            return $results;
+        }
+
+        $requests = $uncachedPairs->mapWithKeys(
+            fn (array $pair, int $index) => [$index => new ListDeploymentsRequest($pair['serverId'], $pair['siteId'])],
+        );
+
+        $responses = $this->connector->poolRequests($requests->all());
+
+        foreach ($responses as $index => $response) {
+            $pair = $uncachedPairs[$index];
+
+            if (filled($response->json('meta.next_cursor'))) {
+                // More than one page — let forSite() paginate it properly instead of guessing.
+                $results = $results->merge($this->forSite($pair['serverId'], $pair['siteId']));
+
+                continue;
+            }
+
+            $deployments = collect($response->json('data') ?? [])
+                ->map(fn (array $item) => DeploymentData::fromArray($pair['serverId'], $pair['siteId'], JsonApiResource::flattenItem($item)))
+                ->values();
+
+            ForgeCache::put(static::cacheKey($pair['serverId'], $pair['siteId']), $deployments, config('forge-insights.cache.deployments', 120));
+
+            $results = $results->merge($deployments);
+        }
+
+        return $results;
+    }
+
+    /**
+     * @return Collection<int, DeploymentData>
+     */
+    protected function fetch(int | string $serverId, int | string $siteId): Collection
+    {
+        return collect(
+            $this->connector->paginate(new ListDeploymentsRequest($serverId, $siteId))
+                ->collect()
+                ->map(fn (array $item) => DeploymentData::fromArray($serverId, $siteId, JsonApiResource::flattenItem($item)))
+                ->all(),
+        );
+    }
+
+    protected static function cacheKey(int | string $serverId, int | string $siteId): string
+    {
+        return 'deployments:' . config('forge-insights.organization') . ":{$serverId}:{$siteId}";
     }
 }

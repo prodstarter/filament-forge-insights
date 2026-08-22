@@ -3,10 +3,14 @@
     "type": "module",
     "scripts": {
         "dev": "node bin/build.js --dev",
-        "build": "node bin/build.js"
+        "dev:css": "tailwindcss -i ./resources/css/index.css -o ./resources/dist/filament-forge-insights.css --watch",
+        "build": "node bin/build.js && npm run build:css",
+        "build:css": "tailwindcss -i ./resources/css/index.css -o ./resources/dist/filament-forge-insights.css --minify"
     },
     "devDependencies": {
+        "@tailwindcss/cli": "^4.1.16",
         "esbuild": "^0.28.0",
-        "prettier": "^3.5.3"
+        "prettier": "^3.5.3",
+        "tailwindcss": "^4.1.16"
     }
 }

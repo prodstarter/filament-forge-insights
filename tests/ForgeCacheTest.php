@@ -45,6 +45,30 @@ it('treats a corrupted cache entry as a miss and recomputes instead of throwing'
     expect($result->first())->toBe('recovered');
 });
 
+it('reports whether a key is cached without computing or storing anything on a miss', function () {
+    expect(ForgeCache::has('not-yet-cached'))->toBeFalse();
+
+    $calls = 0;
+
+    ForgeCache::remember('now-cached', 60, function () use (&$calls) {
+        $calls++;
+
+        return 'value';
+    });
+
+    expect(ForgeCache::has('now-cached'))->toBeTrue();
+    expect(ForgeCache::has('not-yet-cached'))->toBeFalse();
+    expect($calls)->toBe(1);
+});
+
+it('get() returns null on a miss and the stored value after put()', function () {
+    expect(ForgeCache::get('put-test'))->toBeNull();
+
+    ForgeCache::put('put-test', collect(['x', 'y']), 60);
+
+    expect(ForgeCache::get('put-test')->all())->toBe(['x', 'y']);
+});
+
 it('busts the cache when flush is called', function () {
     $calls = 0;
 
