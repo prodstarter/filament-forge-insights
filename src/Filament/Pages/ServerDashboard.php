@@ -42,6 +42,8 @@ class ServerDashboard extends Page
      * memoization here, a single render on an org with a handful of servers
      * was issuing 800+ of those round trips. These properties make each
      * underlying fetch happen at most once per render.
+     *
+     * @var ?Collection<int, ServerData>
      */
     protected ?Collection $memoizedServers = null;
 
@@ -50,6 +52,9 @@ class ServerDashboard extends Page
      */
     protected array $memoizedSitesByServer = [];
 
+    /**
+     * @var ?Collection<int, DeploymentData>
+     */
     protected ?Collection $memoizedDeployments = null;
 
     protected bool $sslCertificateResolved = false;
@@ -129,7 +134,7 @@ class ServerDashboard extends Page
     }
 
     /**
-     * @return array{title: string, subtitle: ?string, health: HealthStatus, healthLabel: string, websiteUrl: ?string}
+     * @return array{title: string, subtitle: ?string, health: HealthStatus, websiteUrl: ?string}
      */
     public function getIdentityHeader(): array
     {
@@ -139,7 +144,7 @@ class ServerDashboard extends Page
             [$server, $site] = $this->siteContext();
 
             return [
-                'title' => $site?->domain ?? 'Server Dashboard',
+                'title' => $site->domain ?? 'Server Dashboard',
                 'subtitle' => $server
                     ? implode(' · ', array_filter([$server->formattedProvider(), $server->region]))
                     : null,
@@ -152,7 +157,7 @@ class ServerDashboard extends Page
             $server = $this->servers()->first();
 
             return [
-                'title' => $server?->name ?? 'Server Dashboard',
+                'title' => $server->name ?? 'Server Dashboard',
                 'subtitle' => $server
                     ? implode(' · ', array_filter([$server->formattedProvider(), $server->region]))
                     : null,
@@ -545,6 +550,9 @@ class ServerDashboard extends Page
         return [$daysRemaining > 0 ? "{$daysRemaining} days left" : 'Expired'];
     }
 
+    /**
+     * @return Collection<int, ServerData>
+     */
     protected function servers(): Collection
     {
         return $this->memoizedServers ??= app(ServerRepositoryInterface::class)->all();
@@ -570,6 +578,9 @@ class ServerDashboard extends Page
         return $this->memoizedSitesByServer[$serverId] ?? collect();
     }
 
+    /**
+     * @return Collection<int, DeploymentData>
+     */
     protected function recentDeployments(int $limit): Collection
     {
         $this->memoizedDeployments ??= app(DeploymentRepositoryInterface::class)->recent(static::MAX_RECENT_DEPLOYMENTS);

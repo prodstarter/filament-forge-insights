@@ -71,21 +71,22 @@ class DeploymentRepository implements DeploymentRepositoryInterface
      */
     protected function fetchForPairs(Collection $pairs): Collection
     {
-        $results = collect();
-        $uncachedPairs = collect();
+        /** @var Collection<int, array{serverId: int|string, siteId: int|string, cached: ?Collection<int, DeploymentData>}> $lookups */
+        $lookups = $pairs->map(fn (array $pair) => [
+            ...$pair,
+            'cached' => ForgeCache::get(static::cacheKey($pair['serverId'], $pair['siteId'])),
+        ]);
 
-        foreach ($pairs as $pair) {
-            $cached = ForgeCache::get(static::cacheKey($pair['serverId'], $pair['siteId']));
+        $cachedResults = $lookups
+            ->reject(fn (array $lookup) => is_null($lookup['cached']))
+            ->flatMap(fn (array $lookup) => $lookup['cached']);
 
-            if (is_null($cached)) {
-                $uncachedPairs->push($pair);
-            } else {
-                $results = $results->merge($cached);
-            }
-        }
+        $uncachedPairs = $lookups
+            ->filter(fn (array $lookup) => is_null($lookup['cached']))
+            ->values();
 
         if ($uncachedPairs->isEmpty()) {
-            return $results;
+            return $cachedResults;
         }
 
         $requests = $uncachedPairs->mapWithKeys(
@@ -94,14 +95,12 @@ class DeploymentRepository implements DeploymentRepositoryInterface
 
         $responses = $this->connector->poolRequests($requests->all());
 
-        foreach ($responses as $index => $response) {
+        $freshResults = collect($responses)->flatMap(function ($response, int $index) use ($uncachedPairs) {
             $pair = $uncachedPairs[$index];
 
             if (filled($response->json('meta.next_cursor'))) {
                 // More than one page — let forSite() paginate it properly instead of guessing.
-                $results = $results->merge($this->forSite($pair['serverId'], $pair['siteId']));
-
-                continue;
+                return $this->forSite($pair['serverId'], $pair['siteId']);
             }
 
             $deployments = collect($response->json('data') ?? [])
@@ -110,10 +109,10 @@ class DeploymentRepository implements DeploymentRepositoryInterface
 
             ForgeCache::put(static::cacheKey($pair['serverId'], $pair['siteId']), $deployments, config('forge-insights.cache.deployments', 120));
 
-            $results = $results->merge($deployments);
-        }
+            return $deployments;
+        });
 
-        return $results;
+        return $cachedResults->merge($freshResults);
     }
 
     /**

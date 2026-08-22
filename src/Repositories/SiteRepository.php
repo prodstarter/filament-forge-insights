@@ -42,30 +42,30 @@ class SiteRepository implements SiteRepositoryInterface
      */
     public function allForServers(Collection $serverIds): Collection
     {
-        $results = [];
-        $uncachedServerIds = collect();
+        /** @var Collection<int, array{serverId: int|string, cached: ?Collection<int, SiteData>}> $lookups */
+        $lookups = $serverIds->map(fn (int | string $serverId) => [
+            'serverId' => $serverId,
+            'cached' => ForgeCache::get(static::cacheKey($serverId)),
+        ]);
 
-        foreach ($serverIds as $serverId) {
-            $cached = ForgeCache::get(static::cacheKey($serverId));
+        $results = $lookups
+            ->reject(fn (array $lookup) => is_null($lookup['cached']))
+            ->mapWithKeys(fn (array $lookup) => [$lookup['serverId'] => $this->scopeToSite($lookup['cached'])]);
 
-            if (is_null($cached)) {
-                $uncachedServerIds->push($serverId);
-            } else {
-                $results[$serverId] = $this->scopeToSite($cached);
-            }
-        }
+        $uncachedServerIds = $lookups
+            ->filter(fn (array $lookup) => is_null($lookup['cached']))
+            ->map(fn (array $lookup) => $lookup['serverId'])
+            ->values();
 
         if ($uncachedServerIds->isNotEmpty()) {
             $responses = $this->connector->poolRequests(
                 $uncachedServerIds->mapWithKeys(fn (int | string $serverId) => [$serverId => new ListSitesRequest($serverId)])->all(),
             );
 
-            foreach ($responses as $serverId => $response) {
+            $fresh = collect($responses)->mapWithKeys(function ($response, int | string $serverId) {
                 if (filled($response->json('meta.next_cursor'))) {
                     // More than one page — let all() paginate it properly instead of guessing.
-                    $results[$serverId] = $this->all($serverId);
-
-                    continue;
+                    return [$serverId => $this->all($serverId)];
                 }
 
                 $sites = collect($response->json('data') ?? [])
@@ -74,11 +74,16 @@ class SiteRepository implements SiteRepositoryInterface
 
                 ForgeCache::put(static::cacheKey($serverId), $sites, config('forge-insights.cache.sites', 600));
 
-                $results[$serverId] = $this->scopeToSite($sites);
-            }
+                return [$serverId => $this->scopeToSite($sites)];
+            });
+
+            // union(), not merge(): merge() re-indexes integer keys like
+            // array_merge() does, which would silently drop these results
+            // (server IDs are integers) instead of keying by server ID.
+            $results = $results->union($fresh);
         }
 
-        return $serverIds->mapWithKeys(fn (int | string $serverId) => [$serverId => $results[$serverId] ?? collect()]);
+        return $serverIds->mapWithKeys(fn (int | string $serverId) => [$serverId => $results->get($serverId) ?? collect()]);
     }
 
     public function find(int | string $serverId, int | string $id): ?SiteData
