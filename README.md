@@ -1,3 +1,5 @@
+[![Prodstarter — curated software opportunities for builders](art/prodstarter-filament-opportunities.png)](https://prodstarter.com/ecosystem/filament)
+
 # Filament Forge Insights
 
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/prodstarter/filament-forge-insights.svg?style=flat-square)](https://packagist.org/packages/prodstarter/filament-forge-insights)
